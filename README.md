@@ -5,6 +5,9 @@ This component let you connect 7-segment display directly to controller using ju
 # Features
 ## 1 to 8 digits support
 Just list as many `digit_pins` as you have. If you have just one digit feel free connect pin to power rail and don't specify this value.
+### Segment reference
+Connect the pins in order of [`g`, `f`, `e`, `d`, `c`, `b`, `a`, `.`], if your display does not have decimel point it can be ommited. 
+![segments map](https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/7_Segment_Display_with_Labeled_Segments.svg/150px-7_Segment_Display_with_Labeled_Segments.svg.png)
 
 ## Resistors on segment or digit side
 Usually driver is turning on whole digit one by one so you need resistors for each segment pin to have the same brightness. So 8 of them.
@@ -17,22 +20,17 @@ Some displays have degree mark right before the last digit. So you can have `22.
 ## Clock colon
 If display has `:` mark use `colon_pin` and `set_colon_on(bool)` function. Pin becomes `HIGH` when turned on. Just invert pin if you like to have it `LOW` when on.
 
-## Common Anode or Cathode
-Common Anode means segment of a digit turning on by `HIGH` signal on digit and `LOW` on the segment. Common cathode one is reverse.
+## Common Anode or Common Cathode
+Each diode on display has two terminals. Anode is Positive terminal, Cathode is negative. To select your display type use `display_type` config option.
 
-This code has been written for common Anode display.
-
-Once your display is common Cathode display you can invert all the pins. 
-
-It will be nice to have a configuration argument, but it's in TODO list.
+Common Anode displays has Anodes of each digit connected together and exposed as digit pins. Cathodes of each segment connected and exposed as segment pins.
+To display one digit we should select the digit by setting HIGH level on digit pit we need. To select segments to turn on we set segment pins we need to LOW.
+To show different numbers we have to turn them on one by one.
 
 # Usage Examples
 
 ## Common Anode display 4 digits
 This example of wiring 4 digit 7-segment common anode display to [S2 mini](https://www.wemos.cc/en/latest/s2/s2_mini.html). This example will not work with original ESP32 becaues pins 34-39 are read-only there.
-
-### Segment reference
-![segments map](https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/7_Segment_Display_with_Labeled_Segments.svg/150px-7_Segment_Display_with_Labeled_Segments.svg.png)
 
 ### Wiring
 * Display segment pins [`g`, `f`, `e`, `d`, `c`, `b`, `a`, `.`] connected directly to pins [21, 40, 14, 10, 36, 17, 34, 8]
