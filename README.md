@@ -21,7 +21,7 @@ Some displays have degree mark right before the last digit. So you can have `22.
 If display has `:` mark use `colon_pin` and `set_colon_on(bool)` function. Pin becomes `HIGH` when turned on. Just invert pin if you like to have it `LOW` when on.
 
 ## Common Anode or Common Cathode
-Each diode on display has two terminals. Anode is Positive terminal, Cathode is negative. To select your display type use `display_type` config option.
+Each diode on display has two terminals. Anode is Positive terminal, Cathode is negative. To select your display type use `display_type` config option. Default value is 'common_anode', set 'common_cathode' to change it.
 
 Common Anode displays has Anodes of each digit connected together and exposed as digit pins. Cathodes of each segment connected and exposed as segment pins.
 To display one digit we should select the digit by setting HIGH level on digit pit we need. To select segments to turn on we set segment pins we need to LOW.
