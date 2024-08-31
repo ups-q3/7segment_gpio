@@ -65,6 +65,7 @@ display:
   colon_pin: 38
   degree_pin: 13 # degree mark on 
   update_interval: 100ms
+  # display_type: common_cathode # Uncomment this line for common cathode display
   lambda: |-
       switch((millis()/3000) % 3) {
       case 0:
