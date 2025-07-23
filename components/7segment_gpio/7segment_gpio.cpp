@@ -11,7 +11,7 @@ constexpr uint8_t UNKNOWN_CHAR = 0xff;
  *
  */
 constexpr uint8_t ASCII_TO_RAW[95] = {
-    0b00000000,   // ' ', ord 0x20
+    0b11111111,   // ' ', ord 0x20
     0b10110000,   // '!', ord 0x21
     0b00100010,   // '"', ord 0x22
     UNKNOWN_CHAR, // '#', ord 0x23
