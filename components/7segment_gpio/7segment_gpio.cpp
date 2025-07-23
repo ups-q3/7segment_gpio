@@ -439,7 +439,7 @@ void LcdDigitsComponent::setup() {
     // For ESP32, we can't use dynamic interval calculation because the timerX
     // functions are not callable from ISR (placed in flash storage). Here we
     // just use an interrupt firing every 50 µs.
-    timerAlarmWrite(timer, 6000, true);  //     timerAlarmWrite(timer, 50, true);
+    timerAlarmWrite(timer, 100, true);  //     timerAlarmWrite(timer, 50, true);
     timerAlarmEnable(timer);
   } else {
     ESP_LOGE(TAG, "Can't initialize timer");
