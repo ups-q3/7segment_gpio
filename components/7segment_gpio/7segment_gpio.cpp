@@ -193,7 +193,7 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   }
 
   // run at least with 1kHz
-  const uint32_t min_dt_us = 100;   //const uint32_t min_dt_us = 1000
+  const uint32_t min_dt_us = 10;   //const uint32_t min_dt_us = 1000
   const uint32_t now = micros();
 
   auto invert_if_not = [](bool value, bool condition) {
