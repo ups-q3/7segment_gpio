@@ -1,13 +1,6 @@
 /**
  * @file lcd_digits.h
- * @author Anton Sergunov
- * @brief
- * @version 0.1
- * @date 2023-11-10
- *
- * @copyright Anton Sergunov (c) 2023
- *
- * Based on ac_dimmer for timers and max7219 display code
+ * @author …
  */
 
 #pragma once
@@ -27,6 +20,7 @@
 
 namespace esphome {
 namespace lcd_digits {
+
 class LcdDigitsComponent;
 
 using lcd_digits_writer_t = std::function<void(LcdDigitsComponent &)>;
@@ -41,40 +35,27 @@ struct LcdData {
 enum DisplayType { CommonAnode, CommonCathode };
 
 struct LcdDigitsData : LcdData {
-  std::vector<GPIOPin *> digit_pins = {
-      nullptr}; // by default it will expect one pin connected to power rail so
-                // don't need any actions from library side.
+  std::vector<GPIOPin *> digit_pins = {nullptr};
   std::vector<GPIOPin *> segment_pins;
+
   GPIOPin *colon_pin = nullptr;
   GPIOPin *degree_pin = nullptr;
+
   uint8_t cycles_to_skip = 0;
   uint8_t current_frame = 0;
-  /**
-   * @brief Increase on time proptional to lighting items
-   * Usable if you have resistros on digit pins and swithcing the digits
-   */
-  bool compensate_brightness = false;
 
+  bool compensate_brightness = false;
   DisplayType display_type = CommonAnode;
 
-  /**
-   * @brief Iterate digits or segments
-   *
-   * If you have resistors on digits you can iterate segemnts to keep brightness
-   * the same
-   */
   bool iterate_digits = true;
-
   uint8_t intensity_delay = 0;
+
+  // ⭐ НОВЕ: затримка гасіння (мікросекунди)
+  uint16_t blank_delay_us = 0;
 
   void IRAM_ATTR HOT timer_interrupt();
 };
 
-//   a
-// f   b
-//   g
-// e   c
-//   d  .
 class LcdDigitsComponent : public PollingComponent {
 public:
   enum Mode { BufferMode, ProgressMode, DisabledMode };
@@ -89,6 +70,11 @@ public:
   void set_iterate_digits(bool arg);
   void set_intensity(uint8_t arg);
 
+  // ⭐ НОВЕ
+  void set_blank_delay(uint16_t us) {
+    interrupt_data_.blank_delay_us = us;
+  }
+
   void setup() override;
   void update() override;
   void dump_config() override;
@@ -96,13 +82,7 @@ public:
   uint8_t print(uint8_t start_pos, const char *str);
   uint8_t print(const char *str);
   uint8_t printf(uint8_t pos, const char *format, ...);
-  /**
-   * @brief Set the raw value
-   *
-   * \a raw are 8 bytes low byte becomes the right most one.
-   * Each byte is in format `0b.abcdefg`
-   * @param raw
-   */
+
   void set_raw(uint64_t raw);
   void strftime(uint8_t pos, const char *format, ESPTime time);
   void set_degree_on(bool arg = true);
@@ -114,6 +94,7 @@ public:
 private:
   static constexpr auto TAG = "lcd_digits";
   hw_timer_t *timer = nullptr;
+
   optional<lcd_digits_writer_t> writer_{};
   LcdDigitsData interrupt_data_;
   LcdData display_data_;
