@@ -157,7 +157,7 @@ constexpr uint8_t CYRILLIC_TO_RAW[] = {
     UNKNOWN_CHAR, // `л` 0x043b
     UNKNOWN_CHAR, // `м` 0x043c
     UNKNOWN_CHAR, // `н` 0x043d
-    UNKNOWN_CHAR, // `о` 0x043e
+    UNKNOWN_CHAR, // `о` 0x043е
     UNKNOWN_CHAR, // `п` 0x043f
     UNKNOWN_CHAR, // `р` 0x0440
     UNKNOWN_CHAR, // `с` 0x0441
@@ -193,7 +193,7 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   }
 
   // run at least with 1kHz
-  const uint32_t min_dt_us = 1000;   //const uint32_t min_dt_us = 1000
+  const uint32_t min_dt_us = 1000;
   const uint32_t now = micros();
 
   auto invert_if_not = [](bool value, bool condition) {
@@ -211,25 +211,38 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   };
 
   uint8_t bit_count = 0;
+
   if (iterate_digits) {
 
-    // turn off digit
+    // turn off current digit
     if (auto digit_pin = digit_pins[current_frame])
       digit_pin->digital_write(digit_level(false));
+
+    // turn off all segments
+    for (auto *segment_pin : segment_pins)
+      segment_pin->digital_write(segment_level(false));
+
+    // small blanking delay between digits to reduce ghosting
+    for (volatile uint32_t i = 0; i < 50; i++) {
+      __asm__ __volatile__("nop");
+    }
 
     // switch to next digit
     current_frame = (current_frame + 1) % digit_pins.size();
 
+    // set segments for the new digit
     auto raw_digit = buffer_[current_frame];
-    for (const auto &segment_pin : segment_pins) {
+    for (auto *segment_pin : segment_pins) {
       const bool segment_on = raw_digit & 0x01;
       raw_digit >>= 1;
       bit_count += segment_on ? 1 : 0;
       segment_pin->digital_write(segment_level(segment_on));
     }
 
+    // enable the new digit
     if (auto digit_pin = digit_pins[current_frame])
       digit_pin->digital_write(digit_level(true));
+
   } else {
     segment_pins[current_frame]->digital_write(segment_level(false));
 
@@ -289,21 +302,25 @@ void LcdDigitsComponent::set_writer(lcd_digits_writer_t &&writer) {
   assert(timer == nullptr);
   writer_ = std::move(writer);
 }
+
 void LcdDigitsComponent::set_display_type(DisplayType arg) {
   ESP_LOGV(TAG, "set display type: %d", arg);
   InterruptLock lock;
   interrupt_data_.display_type = arg;
 }
+
 void LcdDigitsComponent::set_compensate_brightness(bool arg) {
   ESP_LOGV(TAG, "Setting up brightness to %d", arg);
   InterruptLock lock;
   interrupt_data_.compensate_brightness = arg;
 }
+
 void LcdDigitsComponent::set_iterate_digits(bool arg) {
   ESP_LOGV(TAG, "Setting up iterate digits to %d", arg);
   InterruptLock lock;
   interrupt_data_.iterate_digits = arg;
 }
+
 void LcdDigitsComponent::set_intensity(uint8_t arg) {
   ESP_LOGV(TAG, "Setting up intensity to %d", arg);
   InterruptLock lock;
@@ -341,6 +358,7 @@ void LcdDigitsComponent::set_degree_on(bool arg) {
   ESP_LOGV(TAG, "Setting degree on %d", arg);
   display_data_.degree_on = arg;
 }
+
 void LcdDigitsComponent::set_colon_on(bool arg) {
   ESP_LOGV(TAG, "Setting colon on %d", arg);
   display_data_.colon_on = arg;
@@ -369,7 +387,6 @@ void LcdDigitsComponent::set_progress(float progress) {
   const uint8_t current_step = total_steps * progress;
   const uint8_t current_digit = current_step / 6;
   const uint8_t current_segment = 1 + current_step % 6;
-
 
   auto invert_if_not = [](bool value, bool condition) {
     return condition ? value : !value;
@@ -439,7 +456,7 @@ void LcdDigitsComponent::setup() {
     // For ESP32, we can't use dynamic interval calculation because the timerX
     // functions are not callable from ISR (placed in flash storage). Here we
     // just use an interrupt firing every 50 µs.
-    timerAlarmWrite(timer, 4000, true);  //     timerAlarmWrite(timer, 50, true);
+    timerAlarmWrite(timer, 4000, true);
     timerAlarmEnable(timer);
   } else {
     ESP_LOGE(TAG, "Can't initialize timer");
