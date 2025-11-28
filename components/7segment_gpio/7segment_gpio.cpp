@@ -1,4 +1,4 @@
-#include "lcd_digits.h"
+#include "7segment_gpio.h"
 #include <assert.h>
 
 namespace esphome {
