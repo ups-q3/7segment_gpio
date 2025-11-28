@@ -1,6 +1,5 @@
 /**
  * @file lcd_digits.h
- * @author …
  */
 
 #pragma once
@@ -35,7 +34,8 @@ struct LcdData {
 enum DisplayType { CommonAnode, CommonCathode };
 
 struct LcdDigitsData : LcdData {
-  std::vector<GPIOPin *> digit_pins = {nullptr};
+  std::vector<GPIOPin *> digit_pins = {
+      nullptr}; // за замовчуванням один "rail" pin
   std::vector<GPIOPin *> segment_pins;
 
   GPIOPin *colon_pin = nullptr;
@@ -44,18 +44,29 @@ struct LcdDigitsData : LcdData {
   uint8_t cycles_to_skip = 0;
   uint8_t current_frame = 0;
 
+  /// Підлаштовувати час вмикання залежно від кількості запалених сегментів
   bool compensate_brightness = false;
+
   DisplayType display_type = CommonAnode;
 
+  /// true = ітеруємо цифри, false = ітеруємо сегменти
   bool iterate_digits = true;
+
+  /// Базова затримка яскравості (кількість пропусків циклів після малювання кадру)
   uint8_t intensity_delay = 0;
 
-  // ⭐ НОВЕ: затримка гасіння (мікросекунди)
-  uint16_t blank_delay_us = 0;
+  /// ❗ НОВЕ: скільки циклів тримати "чорний" екран між цифрами
+  uint8_t blank_cycles = 0;
+  bool in_blank_phase = false;
 
   void IRAM_ATTR HOT timer_interrupt();
 };
 
+//   a
+// f   b
+//   g
+// e   c
+//   d  .
 class LcdDigitsComponent : public PollingComponent {
 public:
   enum Mode { BufferMode, ProgressMode, DisabledMode };
@@ -70,9 +81,10 @@ public:
   void set_iterate_digits(bool arg);
   void set_intensity(uint8_t arg);
 
-  // ⭐ НОВЕ
-  void set_blank_delay(uint16_t us) {
-    interrupt_data_.blank_delay_us = us;
+  /// ❗ НОВЕ: регулювання затримки гасіння між цифрами (в "циклах" таймера)
+  inline void set_blank_delay(uint8_t cycles) {
+    InterruptLock lock;
+    interrupt_data_.blank_cycles = cycles;
   }
 
   void setup() override;
@@ -83,6 +95,7 @@ public:
   uint8_t print(const char *str);
   uint8_t printf(uint8_t pos, const char *format, ...);
 
+  /// raw = 8 байт, кожен байт у форматі 0b.abcdefg, молодший байт – правий розряд
   void set_raw(uint64_t raw);
   void strftime(uint8_t pos, const char *format, ESPTime time);
   void set_degree_on(bool arg = true);
@@ -94,7 +107,6 @@ public:
 private:
   static constexpr auto TAG = "lcd_digits";
   hw_timer_t *timer = nullptr;
-
   optional<lcd_digits_writer_t> writer_{};
   LcdDigitsData interrupt_data_;
   LcdData display_data_;
