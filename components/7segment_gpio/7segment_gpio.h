@@ -49,7 +49,7 @@ struct LcdDigitsData : LcdData {
   GPIOPin *degree_pin = nullptr;
   uint8_t cycles_to_skip = 0;
   uint8_t current_frame = 0;
-  uint16_t blank_delay_us = 600; 
+  uint16_t blank_delay_us = 50; 
   /**
    * @brief Increase on time proptional to lighting items
    * Usable if you have resistros on digit pins and swithcing the digits
