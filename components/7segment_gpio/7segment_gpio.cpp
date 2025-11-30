@@ -318,6 +318,10 @@ void LcdDigitsComponent::set_iterate_digits(bool arg) {
   InterruptLock lock;
   interrupt_data_.iterate_digits = arg;
 }
+void LcdDigitsComponent::set_blank_delay(uint16_t delay) {
+  InterruptLock lock;
+  interrupt_data_.blank_delay_us = delay;
+}
 void LcdDigitsComponent::set_intensity(uint8_t arg) {
   ESP_LOGV(TAG, "Setting up intensity to %d", arg);
   InterruptLock lock;
