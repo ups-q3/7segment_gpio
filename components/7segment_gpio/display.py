@@ -45,6 +45,7 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_INTENSITY, default=15): cv.int_range(min=0, max=15),
             cv.Optional(CONF_COLON_PIN): gpio_output_pin_schema,
             cv.Optional(CONF_DEGREE_PIN): gpio_output_pin_schema,
+            cv.Optional("blank_delay", default=50): cv.int_range(min=0, max=2000),
         }
     )
     .extend(cv.polling_component_schema("1s"))
@@ -86,3 +87,5 @@ async def to_code(config):
             config[CONF_LAMBDA], [(LcdDigitsComponentRef, "it")], return_type=cg.void
         )
         cg.add(var.set_writer(lambda_))
+    if "blank_delay" in config:
+       cg.add(var.set_blank_delay(config["blank_delay"]))    
