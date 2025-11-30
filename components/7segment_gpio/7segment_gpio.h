@@ -79,7 +79,7 @@ struct LcdDigitsData : LcdData {
 class LcdDigitsComponent : public PollingComponent {
 public:
   enum Mode { BufferMode, ProgressMode, DisabledMode };
-
+  void set_blank_delay(uint16_t delay); 
   void set_degree_pin(GPIOPin *arg);
   void set_colon_pin(GPIOPin *arg);
   void set_segment_pins(std::vector<GPIOPin *> segment_pins);
