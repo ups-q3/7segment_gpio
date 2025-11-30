@@ -213,36 +213,22 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   uint8_t bit_count = 0;
 if (iterate_digits) {
 
-    // 1. Гасимо всі розряди
-    for (auto *dp : digit_pins) {
-      if (dp) dp->digital_write(digit_level(false));
-    }
+    // turn off digit
+    if (auto digit_pin = digit_pins[current_frame])
+      digit_pin->digital_write(digit_level(false));
 
-    // 2. Гасимо всі сегменти
-    for (auto *sp : segment_pins) {
-      sp->digital_write(segment_level(false));
-    }
-
-    // 3. Невелика пауза (blanking delay)
-    volatile uint32_t delay = blank_delay_us * 10;  
-    while (delay--) {
-      __asm__ __volatile__("nop");
-    }
-
-    // 4. Перехід на новий розряд
+    // switch to next digit
     current_frame = (current_frame + 1) % digit_pins.size();
 
-    // 5. Виставляємо сегменти нового розряду
-    uint8_t raw_digit = buffer_[current_frame];
-    for (auto *sp : segment_pins) {
+    auto raw_digit = buffer_[current_frame];
+    for (const auto &segment_pin : segment_pins) {
       const bool segment_on = raw_digit & 0x01;
       raw_digit >>= 1;
-      sp->digital_write(segment_level(segment_on));
+      segment_pin->digital_write(segment_level(segment_on));
     }
 
-    // 6. Увімкнути новий розряд
-    if (auto *dp = digit_pins[current_frame])
-      dp->digital_write(digit_level(true));
+    if (auto digit_pin = digit_pins[current_frame])
+      digit_pin->digital_write(digit_level(true));
 } else {
     segment_pins[current_frame]->digital_write(segment_level(false));
 
