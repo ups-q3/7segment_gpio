@@ -211,7 +211,7 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   };
 
   uint8_t bit_count = 0;
-if (iterate_digits) {
+  if (iterate_digits) {
 
     // turn off digit
     if (auto digit_pin = digit_pins[current_frame])
@@ -224,12 +224,13 @@ if (iterate_digits) {
     for (const auto &segment_pin : segment_pins) {
       const bool segment_on = raw_digit & 0x01;
       raw_digit >>= 1;
+      bit_count += segment_on ? 1 : 0;
       segment_pin->digital_write(segment_level(segment_on));
     }
 
     if (auto digit_pin = digit_pins[current_frame])
       digit_pin->digital_write(digit_level(true));
-} else {
+  } else {
     segment_pins[current_frame]->digital_write(segment_level(false));
 
     // switch to next segment
