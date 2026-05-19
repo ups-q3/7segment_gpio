@@ -11,7 +11,7 @@ constexpr uint8_t UNKNOWN_CHAR = 0xff;
  *
  */
 constexpr uint8_t ASCII_TO_RAW[95] = {
-    0b11111111,   // ' ', ord 0x20
+    0b00000000,   // ' ', ord 0x20
     0b10110000,   // '!', ord 0x21
     0b00100010,   // '"', ord 0x22
     UNKNOWN_CHAR, // '#', ord 0x23
@@ -27,16 +27,16 @@ constexpr uint8_t ASCII_TO_RAW[95] = {
     0b00000001,   // '-', ord 0x2D
     0b10000000,   // '.', ord 0x2E
     UNKNOWN_CHAR, // '/', ord 0x2F
-    0b11111111,   // '0', ord 0x30 (інверсія 0b01111110)
-    0b11101110,   // '1', ord 0x31 (інверсія 0b00010001)
-    0b11011101,   // '2', ord 0x32 (інверсія 0b01101101)
-    0b11001100,   // '3', ord 0x33 (інверсія 0b01111001)
-    0b10111011,   // '4', ord 0x34 (інверсія 0b00110011)
-    0b10101010,   // '5', ord 0x35 (інверсія 0b01011011)
-    0b10011001,   // '6', ord 0x36 (інверсія 0b01011111)
-    0b10001000,   // '7', ord 0x37 (інверсія 0b01110000)
-    0b01110111,   // '8', ord 0x38 (інверсія 0b01111111)
-    0b01100110,   // '9', ord 0x39 (інверсія 0b01111011)
+    0b01111110,   // '0', ord 0x30
+    0b00110000,   // '1', ord 0x31
+    0b01101101,   // '2', ord 0x32
+    0b01111001,   // '3', ord 0x33
+    0b00110011,   // '4', ord 0x34
+    0b01011011,   // '5', ord 0x35
+    0b01011111,   // '6', ord 0x36
+    0b01110000,   // '7', ord 0x37
+    0b01111111,   // '8', ord 0x38
+    0b01111011,   // '9', ord 0x39
     0b01001000,   // ':', ord 0x3A
     0b01011000,   // ';', ord 0x3B
     0b01000011,   // '<', ord 0x3C
@@ -180,20 +180,66 @@ constexpr uint8_t CYRILLIC_TO_RAW[] = {
     // UNKNOWN_CHAR, // `ё` 0x0451
 };
 
+
 LcdDigitsData *g_interrupt_data = nullptr;
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+constexpr uint32_t LCD_DIGITS_TIMER_FREQUENCY_HZ = 1000000;  // 1 tick = 1 us
+
+static inline hw_timer_t *lcd_digits_timer_begin() {
+  return timerBegin(LCD_DIGITS_TIMER_FREQUENCY_HZ);
+}
+
+static inline void lcd_digits_timer_attach_interrupt(hw_timer_t *timer, void (*isr)()) {
+  timerAttachInterrupt(timer, isr);
+}
+
+static inline void lcd_digits_timer_set_alarm(hw_timer_t *timer, uint64_t alarm_us) {
+  timerAlarm(timer, alarm_us, true, 0);
+}
+
+static inline void lcd_digits_timer_enable(hw_timer_t *timer) {
+  timerStart(timer);
+}
+
+static inline void lcd_digits_timer_disable(hw_timer_t *timer) {
+  timerStop(timer);
+}
+#else
+static inline hw_timer_t *lcd_digits_timer_begin() {
+  return timerBegin(0, 80, true);
+}
+
+static inline void lcd_digits_timer_attach_interrupt(hw_timer_t *timer, void (*isr)()) {
+  timerAttachInterrupt(timer, isr, true);
+}
+
+static inline void lcd_digits_timer_set_alarm(hw_timer_t *timer, uint64_t alarm_us) {
+  timerAlarmWrite(timer, alarm_us, true);
+}
+
+static inline void lcd_digits_timer_enable(hw_timer_t *timer) {
+  timerAlarmEnable(timer);
+}
+
+static inline void lcd_digits_timer_disable(hw_timer_t *timer) {
+  timerAlarmDisable(timer);
+}
+#endif
+
 static void IRAM_ATTR HOT s_timer_intr() {
   g_interrupt_data->timer_interrupt();
 }
 } // namespace
 
-void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
+void IRAM_ATTR LcdDigitsData::timer_interrupt() {
   if (cycles_to_skip > 0) {
     cycles_to_skip--;
     return;
   }
 
   // run at least with 1kHz
-  const uint32_t min_dt_us = 1000;   //const uint32_t min_dt_us = 1000
+  const uint32_t min_dt_us = 1000;
   const uint32_t now = micros();
 
   auto invert_if_not = [](bool value, bool condition) {
@@ -213,38 +259,24 @@ void IRAM_ATTR HOT LcdDigitsData::timer_interrupt() {
   uint8_t bit_count = 0;
   if (iterate_digits) {
 
-    // 1. Гасимо всі розряди
-    for (auto *dp : digit_pins) {
-      if (dp) dp->digital_write(digit_level(false));
-    }
+    // turn off digit
+    if (auto digit_pin = digit_pins[current_frame])
+      digit_pin->digital_write(digit_level(false));
 
-    // 2. Гасимо всі сегменти
-    for (auto *sp : segment_pins) {
-      sp->digital_write(segment_level(false));
-    }
-
-    // 3. Невелика пауза (blanking delay)
-    volatile uint32_t delay = blank_delay_us * 10;  
-    while (delay--) {
-      __asm__ __volatile__("nop");
-    }
-
-    // 4. Перехід на новий розряд
+    // switch to next digit
     current_frame = (current_frame + 1) % digit_pins.size();
 
-    // 5. Виставляємо сегменти нового розряду
-    uint8_t raw_digit = buffer_[current_frame];
-    for (auto *sp : segment_pins) {
+    auto raw_digit = buffer_[current_frame];
+    for (const auto &segment_pin : segment_pins) {
       const bool segment_on = raw_digit & 0x01;
       raw_digit >>= 1;
-      sp->digital_write(segment_level(segment_on));
+      bit_count += segment_on ? 1 : 0;
+      segment_pin->digital_write(segment_level(segment_on));
     }
 
-    // 6. Увімкнути новий розряд
-    if (auto *dp = digit_pins[current_frame])
-      dp->digital_write(digit_level(true));
-}
- else {
+    if (auto digit_pin = digit_pins[current_frame])
+      digit_pin->digital_write(digit_level(true));
+  } else {
     segment_pins[current_frame]->digital_write(segment_level(false));
 
     // switch to next segment
@@ -318,10 +350,6 @@ void LcdDigitsComponent::set_iterate_digits(bool arg) {
   InterruptLock lock;
   interrupt_data_.iterate_digits = arg;
 }
-void LcdDigitsComponent::set_blank_delay(uint16_t delay) {
-  InterruptLock lock;
-  interrupt_data_.blank_delay_us = delay;
-}
 void LcdDigitsComponent::set_intensity(uint8_t arg) {
   ESP_LOGV(TAG, "Setting up intensity to %d", arg);
   InterruptLock lock;
@@ -368,12 +396,18 @@ void LcdDigitsComponent::set_mode(LcdDigitsComponent::Mode mode) {
   if (mode_ == mode)
     return;
 
+  if (timer == nullptr) {
+    mode_ = mode;
+    return;
+  }
+
   switch (mode) {
   case BufferMode:
-    timerAlarmEnable(timer);
+    lcd_digits_timer_enable(timer);
     break;
   case ProgressMode:
-    timerAlarmDisable(timer);
+  case DisabledMode:
+    lcd_digits_timer_disable(timer);
     break;
   }
   mode_ = mode;
@@ -451,14 +485,14 @@ void LcdDigitsComponent::setup() {
 
   // see https://esphome.io/api/ac__dimmer_8cpp_source
   assert(timer == nullptr);
-  timer = timerBegin(0, 80, true);
+  timer = lcd_digits_timer_begin();
   if (timer) {
-    timerAttachInterrupt(timer, &s_timer_intr, true);
+    lcd_digits_timer_attach_interrupt(timer, &s_timer_intr);
     // For ESP32, we can't use dynamic interval calculation because the timerX
     // functions are not callable from ISR (placed in flash storage). Here we
     // just use an interrupt firing every 50 µs.
-    timerAlarmWrite(timer, 2000, true);  //     timerAlarmWrite(timer, 50, true);
-    timerAlarmEnable(timer);
+    lcd_digits_timer_set_alarm(timer, 50);
+    lcd_digits_timer_enable(timer);
   } else {
     ESP_LOGE(TAG, "Can't initialize timer");
   }
