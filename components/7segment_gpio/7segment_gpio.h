@@ -23,6 +23,9 @@
 
 #ifdef USE_ESP32_FRAMEWORK_ARDUINO
 #include <esp32-hal-timer.h>
+#if __has_include(<esp_arduino_version.h>)
+#include <esp_arduino_version.h>
+#endif
 #endif
 
 namespace esphome {
@@ -49,7 +52,6 @@ struct LcdDigitsData : LcdData {
   GPIOPin *degree_pin = nullptr;
   uint8_t cycles_to_skip = 0;
   uint8_t current_frame = 0;
-  uint16_t blank_delay_us = 50; 
   /**
    * @brief Increase on time proptional to lighting items
    * Usable if you have resistros on digit pins and swithcing the digits
@@ -68,7 +70,7 @@ struct LcdDigitsData : LcdData {
 
   uint8_t intensity_delay = 0;
 
-  void IRAM_ATTR HOT timer_interrupt();
+  void timer_interrupt();
 };
 
 //   a
@@ -79,7 +81,7 @@ struct LcdDigitsData : LcdData {
 class LcdDigitsComponent : public PollingComponent {
 public:
   enum Mode { BufferMode, ProgressMode, DisabledMode };
-  void set_blank_delay(uint16_t delay); 
+
   void set_degree_pin(GPIOPin *arg);
   void set_colon_pin(GPIOPin *arg);
   void set_segment_pins(std::vector<GPIOPin *> segment_pins);
