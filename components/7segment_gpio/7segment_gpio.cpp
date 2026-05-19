@@ -352,8 +352,16 @@ void LcdDigitsComponent::set_iterate_digits(bool arg) {
 void LcdDigitsComponent::set_intensity(uint8_t arg) {
   ESP_LOGV(TAG, "Setting up intensity to %d", arg);
   InterruptLock lock;
+  if (arg > 15)
+    arg = 15;
   interrupt_data_.intensity_delay = (15 - arg);
-};
+}
+
+void LcdDigitsComponent::set_blank_delay(uint32_t arg) {
+  // Kept for compatibility with older YAML configs.
+  // This component now uses a fixed hardware timer interval.
+  (void) arg;
+}
 
 void LcdDigitsComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "LCD Digits:");
@@ -397,10 +405,13 @@ void LcdDigitsComponent::set_mode(LcdDigitsComponent::Mode mode) {
 
   switch (mode) {
   case BufferMode:
-    lcd_digits_timer_enable(timer);
+    if (timer)
+      lcd_digits_timer_enable(timer);
     break;
   case ProgressMode:
-    lcd_digits_timer_disable(timer);
+  case DisabledMode:
+    if (timer)
+      lcd_digits_timer_disable(timer);
     break;
   }
   mode_ = mode;
@@ -411,6 +422,10 @@ void LcdDigitsComponent::set_progress(float progress) {
 
   const uint8_t total_digits = interrupt_data_.digit_pins.size();
   const uint8_t total_steps = 6 * total_digits;
+  if (progress < 0.0f)
+    progress = 0.0f;
+  if (progress > 0.999f)
+    progress = 0.999f;
   const uint8_t current_step = total_steps * progress;
   const uint8_t current_digit = current_step / 6;
   const uint8_t current_segment = 1 + current_step % 6;
