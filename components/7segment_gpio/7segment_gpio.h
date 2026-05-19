@@ -113,12 +113,10 @@ public:
 
   void set_mode(Mode mode);
   void set_progress(float progress);
-  void set_intensity(uint8_t arg);
 
   // compatibility with old configs
-  void set_blank_delay(uint8_t arg) {}
+  void set_blank_delay(uint32_t arg);
 
-  void setup() override;
 private:
   static constexpr auto TAG = "lcd_digits";
   hw_timer_t *timer = nullptr;
