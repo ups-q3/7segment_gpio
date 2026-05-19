@@ -180,7 +180,6 @@ constexpr uint8_t CYRILLIC_TO_RAW[] = {
     // UNKNOWN_CHAR, // `ё` 0x0451
 };
 
-
 LcdDigitsData *g_interrupt_data = nullptr;
 
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
@@ -396,17 +395,11 @@ void LcdDigitsComponent::set_mode(LcdDigitsComponent::Mode mode) {
   if (mode_ == mode)
     return;
 
-  if (timer == nullptr) {
-    mode_ = mode;
-    return;
-  }
-
   switch (mode) {
   case BufferMode:
     lcd_digits_timer_enable(timer);
     break;
   case ProgressMode:
-  case DisabledMode:
     lcd_digits_timer_disable(timer);
     break;
   }
